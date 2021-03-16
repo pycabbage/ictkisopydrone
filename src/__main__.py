@@ -3,7 +3,6 @@
 
 import threading
 import socket
-import sys
 import time
 import cv2
 
@@ -15,16 +14,20 @@ class Tello:
         """
         # Create a UDP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.vsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.locaddr = (host, port)
+        self.vlocaddr = (host, 11111)
         self.tello_address = ('192.168.10.1', 8889)
         self.sock.bind(self.locaddr)
+        self.vsock.bind(self.vlocaddr)
         self.command_delay = COMMAND_DELAY
 
         # recvThread create
         recvThread = threading.Thread(target=self._recv_tello)
         recvThread.start()
 
-        self._send_command("command")
+        self._send_command("command", delay=1.0)
+        # ここでstreamonを送る
 
     def _recv_tello(self):
         """
@@ -35,8 +38,10 @@ class Tello:
                 data, server = self.sock.recvfrom(2048)
                 if b"ok" in data:
                     print("OK << Tello")
-                if b"error" in data:
+                elif b"error" in data:
                     print("Error << Tello")
+                else:
+                    print("{} << Tello (binary result)".format(data))
 
             except socket.error:
                 print("socket error")
@@ -55,9 +60,6 @@ class Tello:
         cw[ccw] "Value" : "Value" = 1-360
         flip "Direction" : "Direction" = l(left), r(right), f(forward), b(back)
         """
-        _ALL_COMMANDS_ = ["command", "takeoff", "land", "up", "down",
-                          "left", "right", "forward", "back", "flip",
-                          "cw", "streamon", "streamoff", "emergency"]
 
         if isinstance(c, str):
             if self.command_delay:
@@ -66,7 +68,7 @@ class Tello:
             sent = self.sock.sendto(c.encode("utf-8"), self.tello_address)
             print(c, ">> Tello")
             # self._recv_tello()
-            print("SEND COMMAND '{}'".format(c))
+            # print("SEND COMMAND '{}'".format(c))
             if self.command_delay:
                 time.sleep(interval)
         elif isinstance(c, list):
@@ -134,25 +136,36 @@ class Tello:
         """
         return self._send_command("back {}".format(x))
 
-    def cw(self, x: int):
+    def rotate(self, x: int):
         """
-        x[cm] 後ろに移動する
-        x: int 20-500
+        x[cm] 旋回する
+        x: int -3600-3600
         """
-        return self._send_command("cw {}".format(x))
+        if x < 0:
+            c = "ccw {}".format(x)
+        elif x > 0:
+            c = "cw {}".format(x)
+        return self._send_command(c)
 
     def flip(self, x="f"):
         """
-        x[cm] 後ろに移動する
-        x: int 20-500
+        縦に1回転する
+        x: str
+          b: back
+          f: forward (default)
+          l: left
+          r: right
         """
         return self._send_command("flip {}".format(x))
+
+    def ask(self, x):
+        return self._send_command(x+"?")
 
 
 if __name__ == '__main__':
     t = Tello()
     t.takeoff()
-    t.forward(30)
-    t.cw(90)
-    t.forward(30)
+    t.up(50)
+    t.ask("height")
+    t.down(50)
     t.land()
