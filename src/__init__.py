@@ -47,7 +47,7 @@ class Tello:
                 print("socket error")
                 return
 
-    def _send_command(self, c, interval=0.3, delay=3.0):
+    def _send_command(self, c: str, interval=0.3, delay=3.0):
         """
         S : コマンド(大文字小文字どちらでもいい)
         interval : 入力コマンド間の遅延
@@ -86,11 +86,11 @@ class Tello:
 
     def takeoff(self):
         print("TAKEOFF")
-        """離陸"""
+        """離陸する"""
         return self._send_command("takeoff")
 
     def land(self):
-        """着陸"""
+        """着陸する"""
         print("LAND")
         return self._send_command("land")
 
@@ -158,14 +158,10 @@ class Tello:
         """
         return self._send_command("flip {}".format(x))
 
-    def ask(self, x):
+    def ask(self, x: str):
+        """
+        ドローンの状態を確認する
+        x: str
+           詳細はドキュメント参照
+        """
         return self._send_command(x+"?")
-
-
-if __name__ == '__main__':
-    t = Tello()
-    t.takeoff()
-    t.up(50)
-    t.ask("height")
-    t.down(50)
-    t.land()
