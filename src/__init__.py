@@ -5,6 +5,7 @@ import threading
 import socket
 import time
 import cv2
+from subprocess import Popen, PIPE
 
 
 class Tello:
@@ -26,8 +27,13 @@ class Tello:
         recvThread = threading.Thread(target=self._recv_tello)
         recvThread.start()
 
+        vrecvThread = threading.Thread(target=self._vrecv_tello)
+        vrecvThread.start()
+
+        self.p = Popen("ffplay -i -", stdin=PIPE)
+
         self._send_command("command", delay=1.0)
-        # ここでstreamonを送る
+        self._send_command("streamon", delay=1.0)
 
     def _recv_tello(self):
         """
@@ -42,6 +48,25 @@ class Tello:
                     print("Error << Tello")
                 else:
                     print("{} << Tello (binary result)".format(data))
+
+            except socket.error:
+                print("socket error")
+                return
+
+    def _vrecv_tello(self):
+        """
+        Telloから応答を受け取る
+        """
+        while True:
+            try:
+                data, server = self.vsock.recvfrom(2048)
+                if b"ok" in data:
+                    print("OK << Tello")
+                elif b"error" in data:
+                    print("Error << Tello")
+                else:
+                    # print("{} << Tello (binary result)".format(data))
+                    self.p.stdin.write(data)
 
             except socket.error:
                 print("socket error")
@@ -162,6 +187,11 @@ class Tello:
         """
         ドローンの状態を確認する
         x: str
-           詳細はドキュメント参照
+           詳細は公式ドキュメント参照
         """
         return self._send_command(x+"?")
+
+
+if __name__ == '__main__':
+    t = Tello()
+    t.ask("battery")
